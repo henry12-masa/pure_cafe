@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>東京 純喫茶DB｜レトロ喫茶検索アプリ</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  color:#3b2414;
+  font-family:"Yu Mincho","Hiragino Mincho ProN","Times New Roman",serif;
+  background:
+    radial-gradient(circle at top left,rgba(255,236,179,.35),transparent 35%),
+    linear-gradient(135deg,#2b170d,#5c351d 38%,#1d120b);
+}
+
+header{
+  padding:34px 18px;
+  text-align:center;
+  background:
+    linear-gradient(135deg,rgba(80,38,18,.96),rgba(151,82,38,.94)),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 2px,transparent 2px 8px);
+  border-bottom:5px solid #d7a35a;
+  color:#fff4d8;
+}
+
+header h1{
+  margin:0;
+  font-size:38px;
+  letter-spacing:.16em;
+  text-shadow:0 4px 0 rgba(0,0,0,.25);
+}
+
+header p{
+  margin:10px 0 0;
+  color:#ffe8b5;
+  font-size:15px;
+}
+
+.wrap{
+  max-width:1240px;
+  margin:auto;
+  padding:18px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:390px 1fr;
+  gap:18px;
+}
+
+.panel{
+  background:#fff3d8;
+  border:3px solid #8b451d;
+  border-radius:22px;
+  padding:18px;
+  box-shadow:0 18px 40px rgba(0,0,0,.35);
+}
+
+.panel-title{
+  margin:0 0 12px;
+  padding:10px 12px;
+  background:#5b2f18;
+  color:#fff1c2;
+  border-radius:14px;
+  text-align:center;
+  letter-spacing:.08em;
+}
+
+label{
+  display:block;
+  margin:12px 0 6px;
+  font-weight:900;
+}
+
+input,select,textarea{
+  width:100%;
+  padding:12px;
+  border-radius:12px;
+  border:2px solid #9b6a3d;
+  background:#fffaf0;
+  color:#3b2414;
+  font-size:15px;
+}
+
+textarea{
+  min-height:210px;
+  font-family:Consolas,monospace;
+  white-space:pre;
+  overflow:auto;
+}
+
+button{
+  border:0;
+  border-radius:999px;
+  padding:11px 15px;
+  background:#8b451d;
+  color:#fff5d6;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 4px 0 #4b2512;
+}
+
+button:hover{
+  transform:translateY(1px);
+  box-shadow:0 3px 0 #4b2512;
+}
+
+button.secondary{background:#b7793f}
+button.danger{background:#8f1d1d}
+
+.btns{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+
+#map{
+  height:640px;
+  border-radius:20px;
+  border:3px solid #8b451d;
+  background:#6b4226;
+}
+
+.small{
+  font-size:13px;
+  color:#5d3b24;
+  line-height:1.7;
+}
+
+.results{
+  display:grid;
+  gap:12px;
+  max-height:565px;
+  overflow:auto;
+  margin-top:14px;
+}
+
+.shop{
+  position:relative;
+  background:
+    linear-gradient(135deg,#fffaf0,#ffe3aa);
+  border:2px solid #9b6a3d;
+  border-radius:18px;
+  padding:14px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);
+}
+
+.shop:before{
+  content:"純喫茶";
+  position:absolute;
+  right:12px;
+  top:12px;
+  background:#6b2f16;
+  color:#ffe7a8;
+  border-radius:999px;
+  padding:4px 9px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.shop h3{
+  margin:0 68px 8px 0;
+  color:#4b2512;
+  font-size:18px;
+}
+
+.shop p{
+  margin:5px 0;
+  color:#5d3b24;
+  font-size:14px;
+}
+
+.tag{
+  display:inline-block;
+  background:#6b4226;
+  color:#fff3c4;
+  border-radius:999px;
+  padding:4px 9px;
+  margin:3px 3px 0 0;
+  font-size:12px;
+}
+
+#dataBox{display:none}
+
+.err{
+  background:#3f1d1d;
+  color:#fecaca;
+  border:1px solid #7f1d1d;
+  padding:10px;
+  border-radius:12px;
+  white-space:pre-wrap;
+}
+
+.ok{
+  background:#164e2f;
+  color:#dcfce7;
+  border:1px solid #16a34a;
+  padding:10px;
+  border-radius:12px;
+}
+
+.menu-note{
+  background:#5b2f18;
+  color:#fff0c2;
+  border-radius:16px;
+  padding:12px;
+  margin-bottom:12px;
+  font-size:13px;
+  line-height:1.7;
+}
+
+@media(max-width:900px){
+  .grid{grid-template-columns:1fr}
+  #map{height:430px}
+  header h1{font-size:28px}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>東京 純喫茶DB</h1>
+  <p>レトロ喫茶・クリームソーダ・ナポリタン・プリンを地図で探す</p>
+</header>
+
+<main class="wrap">
+<div class="grid">
+
+<section class="panel">
+<h2 class="panel-title">喫茶店を探す</h2>
+
+<div class="menu-note">
+昭和レトロな純喫茶を、エリア・店名・住所・タグで検索できます。
+</div>
+
+<label>エリア</label>
+<select id="areaMode"></select>
+
+<label>キーワード</label>
+<input id="keyword" placeholder="例：ナポリタン・プリン・クリームソーダ・喫煙可">
+
+<div class="btns">
+  <button onclick="applySearch()">検索</button>
+  <button class="secondary" onclick="showData()">CSV貼り付け</button>
+  <button class="secondary" onclick="showResults()">検索結果</button>
+  <button class="danger" onclick="resetStores()">初期化</button>
+</div>
+
+<p id="status" class="small"></p>
+<div id="message"></div>
+
+<div id="resultsBox" class="results"></div>
+
+<div id="dataBox">
+<p class="small">
+対応CSV：<br>
+id,name,area,address,lat,lng,tags<br><br>
+例：<br>
+kissa_001,喫茶アンデス,新宿,東京都新宿区新宿3-22-7,35.6938,139.7024,昭和レトロ|ナポリタン|クリームソーダ
+</p>
+
+<label>CSV貼り付け</label>
+<textarea id="csvInput"></textarea>
+
+<div class="btns">
+  <button onclick="applyCsv()">CSVを反映</button>
+  <button class="secondary" onclick="exportCsv()">現在データをCSV欄へ</button>
+</div>
+
+<label>JSON確認</label>
+<textarea id="jsonBox"></textarea>
+</div>
+</section>
+
+<section class="panel">
+<h2 class="panel-title">純喫茶マップ</h2>
+<div id="map"></div>
+<p class="small">※営業時間・定休日・喫煙可否は来店前に公式情報やGoogleマップで確認してください。</p>
+</section>
+
+</div>
+</main>
+
+<script>
+const STORAGE_KEY = "retro_kissa_db_v1";
+
+/*
+ここを自分のGoogleスプレッドシート公開CSV URLに変更してください。
+使わない場合は空文字 "" のままでOK。
+*/
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtUI6_m6MpN9rR9L-zcRkqV8nxK6NhotUTb_Cx9nT6JWU6ohKszkoWJRAJhWFTQTa0Fr82b8b8okEN/pub?output=csv";
+
+const DEFAULT_STORES = [
+  {
+    id:"kissa_001",
+    name:"喫茶 アメリカン",
+    type:"純喫茶",
+    area:"tokyo",
+    cityArea:"東銀座",
+    address:"東京都中央区銀座4-11-7",
+    lat:35.6697,
+    lng:139.7687,
+    rating:5,
+    tags:["東銀座","昭和レトロ","サンドイッチ","老舗"],
+    memo:"初期サンプル"
+  },
+  {
+    id:"kissa_002",
+    name:"珈琲 王城",
+    type:"純喫茶",
+    area:"tokyo",
+    cityArea:"上野",
+    address:"東京都台東区上野6-8-15",
+    lat:35.7113,
+    lng:139.7764,
+    rating:5,
+    tags:["上野","レトロ","ナポリタン","クリームソーダ"],
+    memo:"初期サンプル"
+  },
+  {
+    id:"kissa_003",
+    name:"名曲・珈琲 麦",
+    type:"純喫茶",
+    area:"tokyo",
+    cityArea:"本郷三丁目",
+    address:"東京都文京区本郷2-39-5",
+    lat:35.7071,
+    lng:139.7604,
+    rating:4,
+    tags:["本郷三丁目","名曲喫茶","落ち着く","レトロ"],
+    memo:"初期サンプル"
+  }
+];
+
+let stores = [];
+let filteredStores = [];
+let map;
+let markers = [];
+
+async function init(){
+  stores = await loadStoresFromCsvUrl();
+
+  map = L.map("map").setView([35.681236,139.767125], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom:19,
+    attribution:"&copy; OpenStreetMap contributors"
+  }).addTo(map);
+
+  document.getElementById("areaMode").addEventListener("change", applySearch);
+  document.getElementById("keyword").addEventListener("input", applySearch);
+
+  exportCsv();
+  buildAreas();
+  applySearch();
+}
+
+function loadStores(){
+  try{
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if(saved) return JSON.parse(saved);
+  }catch(e){}
+  return DEFAULT_STORES;
+}
+
+async function loadStoresFromCsvUrl(){
+  if(!CSV_URL) return loadStores();
+
+  try{
+    const res = await fetch(CSV_URL);
+    const text = await res.text();
+    const lines = cleanText(text).split(/\r?\n/).map(cleanText).filter(Boolean);
+    const header = parseCsvLine(lines.shift()).map(h => cleanText(h).toLowerCase());
+    const data = [];
+
+    lines.forEach(line => {
+      const vals = parseCsvLine(line);
+      const row = {};
+      header.forEach((h,i)=>row[h]=vals[i] ?? "");
+
+      const obj = {
+        id: row.id,
+        name: row.name,
+        type: row.type || "純喫茶",
+        area: "tokyo",
+        cityArea: row.cityarea || row.area || "",
+        address: row.address,
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        rating: Number(row.rating || 4),
+        tags: String(row.tags || "").split("|").map(cleanText).filter(Boolean),
+        memo: row.memo || "スプレッドシート読込"
+      };
+
+      if(!obj.cityArea || obj.cityArea === "tokyo"){
+        obj.cityArea = inferArea([obj.name,obj.address,obj.tags.join("|")].join(" "));
+      }
+
+      if(!obj.tags.includes(obj.cityArea)) obj.tags.unshift(obj.cityArea);
+
+      if(validStore(obj)) data.push(obj);
+    });
+
+    if(data.length) return data;
+  }catch(e){
+    console.error("CSV読み込み失敗", e);
+  }
+
+  return loadStores();
+}
+
+function saveStores(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stores));
+}
+
+function cleanText(s){
+  return String(s ?? "")
+    .replace(/^\uFEFF/, "")
+    .replace(/\uFEFF/g, "")
+    .replace(/[“”]/g, '"')
+    .replace(/[，]/g, ",")
+    .trim();
+}
+
+function parseCsvLine(line){
+  const out = [];
+  let cur = "";
+  let q = false;
+
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(ch === '"' && line[i+1] === '"'){
+      cur += '"';
+      i++;
+    }else if(ch === '"'){
+      q = !q;
+    }else if(ch === "," && !q){
+      out.push(cleanText(cur));
+      cur = "";
+    }else{
+      cur += ch;
+    }
+  }
+
+  out.push(cleanText(cur));
+  return out;
+}
+
+function isNum(v){
+  return Number.isFinite(Number(v));
+}
+
+function validStore(s){
+  return s.id && s.name && isNum(s.lat) && isNum(s.lng);
+}
+
+function inferArea(text){
+  const t = String(text || "");
+  const rules = [
+    ["銀座",["銀座","東銀座","有楽町","新富町"]],
+    ["新宿",["新宿","西新宿","歌舞伎町","高田馬場"]],
+    ["渋谷",["渋谷","道玄坂","宇田川町","神泉"]],
+    ["池袋",["池袋","東池袋","西池袋","南池袋"]],
+    ["上野",["上野","御徒町","湯島","鶯谷"]],
+    ["浅草",["浅草","田原町","蔵前"]],
+    ["神保町",["神保町","神田","御茶ノ水","水道橋"]],
+    ["本郷三丁目",["本郷","本郷三丁目"]],
+    ["下北沢",["下北沢"]],
+    ["中野",["中野","東中野","中野坂上"]],
+    ["高円寺",["高円寺","新高円寺"]],
+    ["阿佐ヶ谷",["阿佐ヶ谷","阿佐谷"]],
+    ["荻窪",["荻窪"]],
+    ["吉祥寺",["吉祥寺","井の頭"]],
+    ["三軒茶屋",["三軒茶屋","三茶"]],
+    ["目黒",["目黒"]],
+    ["五反田",["五反田"]],
+    ["品川",["品川","大崎"]],
+    ["新橋",["新橋","虎ノ門"]],
+    ["日本橋",["日本橋","人形町","三越前"]],
+    ["北千住",["北千住"]],
+    ["赤羽",["赤羽"]],
+    ["立川",["立川"]]
+  ];
+
+  for(const [area, words] of rules){
+    if(words.some(w => t.includes(w))) return area;
+  }
+  return "その他";
+}
+
+function applyCsv(){
+  const msg = document.getElementById("message");
+  msg.innerHTML = "";
+
+  const raw = document.getElementById("csvInput").value;
+  const text = cleanText(raw);
+
+  if(!text){
+    msg.innerHTML = '<div class="err">CSVが空です。</div>';
+    return;
+  }
+
+  const lines = text.split(/\r?\n/).map(cleanText).filter(Boolean);
+  const headerRaw = parseCsvLine(lines.shift()).map(cleanText);
+  const header = headerRaw.map(h => h.toLowerCase());
+
+  const data = [];
+  const skipped = [];
+
+  lines.forEach((line,index)=>{
+    const vals = parseCsvLine(line);
+    let obj = null;
+
+    const row = {};
+    header.forEach((h,i)=>row[h]=vals[i] ?? "");
+
+    if(header.includes("id") && header.includes("name")){
+      obj = {
+        id: row.id,
+        name: row.name,
+        type: row.type || "純喫茶",
+        area: "tokyo",
+        cityArea: row.cityarea || row.area || "",
+        address: row.address,
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        rating: Number(row.rating || 4),
+        tags: String(row.tags || "").split("|").map(cleanText).filter(Boolean),
+        memo: row.memo || "CSV追加"
+      };
+    }
+
+    if(!obj || !validStore(obj)){
+      if(vals.length >= 7){
+        obj = {
+          id: vals[0],
+          name: vals[1],
+          type: "純喫茶",
+          area: "tokyo",
+          cityArea: vals[2],
+          address: vals[3],
+          lat: Number(vals[4]),
+          lng: Number(vals[5]),
+          rating: 4,
+          tags: String(vals.slice(6).join("|")).split("|").map(cleanText).filter(Boolean),
+          memo: "CSV追加"
+        };
+      }
+    }
+
+    if(obj){
+      if(!obj.cityArea || obj.cityArea === "tokyo"){
+        obj.cityArea = inferArea([obj.name,obj.address,obj.tags.join("|"),obj.memo].join(" "));
+      }
+      if(!obj.tags.includes(obj.cityArea)) obj.tags.unshift(obj.cityArea);
+    }
+
+    if(obj && validStore(obj)){
+      data.push(obj);
+    }else{
+      skipped.push((index + 2) + "行目: " + line);
+    }
+  });
+
+  if(!data.length){
+    msg.innerHTML = '<div class="err">読み込める行がありません。CSVのヘッダーとlat/lngを確認してください。</div>';
+    return;
+  }
+
+  stores = data;
+  saveStores();
+  exportCsv();
+  buildAreas();
+  document.getElementById("areaMode").value = "all";
+  applySearch();
+
+  msg.innerHTML =
+    '<div class="ok">' + data.length + '件読み込みました。' +
+    (skipped.length ? '<br>スキップ: ' + skipped.length + '件' : '') +
+    '</div>' +
+    (skipped.length ? '<div class="err">' + skipped.slice(0,10).join("\n") + '</div>' : '');
+}
+
+function buildAreas(){
+  const select = document.getElementById("areaMode");
+  const current = select.value || "all";
+  const areas = [...new Set(stores.map(s => s.cityArea || "その他"))].sort((a,b)=>a.localeCompare(b,"ja"));
+
+  select.innerHTML = '<option value="all">東京全体</option>';
+
+  areas.forEach(a=>{
+    const opt = document.createElement("option");
+    opt.value = a;
+    opt.textContent = a;
+    select.appendChild(opt);
+  });
+
+  select.value = current === "all" || areas.includes(current) ? current : "all";
+}
+
+function applySearch(){
+  const area = document.getElementById("areaMode").value;
+  const kw = document.getElementById("keyword").value.toLowerCase().trim();
+
+  filteredStores = stores.filter(s=>{
+    const text = [
+      s.id,
+      s.name,
+      s.type,
+      s.cityArea,
+      s.address,
+      (s.tags || []).join("|"),
+      s.memo
+    ].join(" ").toLowerCase();
+
+    return (area === "all" || s.cityArea === area) && (!kw || text.includes(kw));
+  });
+
+  renderResults();
+  renderMarkers();
+  showResults();
+  setStatus(filteredStores.length + "件表示 / 全" + stores.length + "件");
+}
+
+function renderResults(){
+  const box = document.getElementById("resultsBox");
+
+  if(!filteredStores.length){
+    box.innerHTML = '<p class="small">該当なし。エリアを東京全体にするか、キーワードを変えてください。</p>';
+    return;
+  }
+
+  box.innerHTML = filteredStores.map((s,i)=>`
+    <div class="shop">
+      <h3>${i+1}. ${esc(s.name)}</h3>
+      <p>${esc(s.address)}</p>
+      <p>
+        <span class="tag">${esc(s.cityArea)}</span>
+        <span class="tag">${esc(s.type)}</span>
+        ${(s.tags || []).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}
+      </p>
+      <div class="btns">
+        <button class="secondary" onclick="focusStore('${escAttr(s.id)}')">地図で見る</button>
+        <button onclick="openGoogle('${escAttr(s.id)}')">Googleマップ</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function validCoord(s){
+  const lat = Number(s.lat);
+  const lng = Number(s.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= 20 && lat <= 46 && lng >= 122 && lng <= 154;
+}
+
+function renderMarkers(){
+  markers.forEach(m => m.remove());
+  markers = [];
+
+  const list = filteredStores.filter(validCoord);
+  if(!list.length) return;
+
+  const bounds = [];
+
+  list.forEach(s=>{
+    const marker = L.marker([Number(s.lat),Number(s.lng)]).addTo(map);
+    marker.storeId = s.id;
+    marker.bindPopup("<b>" + esc(s.name) + "</b><br>" + esc(s.address));
+    markers.push(marker);
+    bounds.push([Number(s.lat),Number(s.lng)]);
+  });
+
+  if(bounds.length === 1){
+    map.setView(bounds[0],15);
+  }else{
+    map.fitBounds(bounds,{padding:[30,30],maxZoom:14});
+  }
+
+  setTimeout(()=>map.invalidateSize(),100);
+}
+
+function focusStore(id){
+  const s = stores.find(x => x.id === id);
+  if(!s || !validCoord(s)) return;
+
+  map.setView([Number(s.lat),Number(s.lng)],16);
+
+  const m = markers.find(x => x.storeId === id);
+  if(m) m.openPopup();
+}
+
+function openGoogle(id){
+  const s = stores.find(x => x.id === id);
+  if(!s) return;
+
+  window.open(
+    "https://www.google.com/maps/search/?api=1&query=" +
+    encodeURIComponent(s.name + " " + s.address),
+    "_blank"
+  );
+}
+
+function exportCsv(){
+  const header = "id,name,area,address,lat,lng,tags";
+
+  const rows = stores.map(s => [
+    s.id,
+    s.name,
+    s.cityArea,
+    s.address,
+    s.lat,
+    s.lng,
+    (s.tags || []).join("|")
+  ].map(csvEscape).join(","));
+
+  const csv = header + "\n" + rows.join("\n");
+
+  document.getElementById("csvInput").value = csv;
+  document.getElementById("jsonBox").value = JSON.stringify(stores,null,2);
+}
+
+function csvEscape(v){
+  const s = String(v ?? "");
+  if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function resetStores(){
+  localStorage.removeItem(STORAGE_KEY);
+  stores = DEFAULT_STORES;
+  exportCsv();
+  buildAreas();
+  applySearch();
+}
+
+function showData(){
+  document.getElementById("dataBox").style.display = "block";
+  document.getElementById("resultsBox").style.display = "none";
+}
+
+function showResults(){
+  document.getElementById("dataBox").style.display = "none";
+  document.getElementById("resultsBox").style.display = "grid";
+}
+
+function setStatus(t){
+  document.getElementById("status").textContent = t;
+}
+
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g,m=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#039;"
+  }[m]));
+}
+
+function escAttr(s){
+  return String(s ?? "").replace(/[\\'"<>]/g,"");
+}
+
+window.addEventListener("load",init);
+</script>
+
+<div style="max-width:1200px;margin:30px auto 20px;padding:0 16px;">
+  <div style="
+    background:#fff3d8;
+    border-radius:22px;
+    padding:16px;
+    border:3px solid #8b451d;
+    text-align:center;
+  ">
+
+    <script async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8398161859137802"
+      crossorigin="anonymous"></script>
+
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-8398161859137802"
+         data-ad-slot="5599163841"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+
+    <script>
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+
+  </div>
+</div>
+
+</body>
+</html>
